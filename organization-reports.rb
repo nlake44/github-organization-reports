@@ -5,10 +5,13 @@ require "octokit"
 CUTOFF = DateTime.now - 90
 
 # your organization name
-ORGANIZATION = ""
+ORGANIZATION = "intouchhealth"
 
 User = Struct.new(:type, :username, :full_name, :active, :last_activity, :num_events)
 Event = Struct.new(:username, :repository, :date)
+
+UP = "\u2191"
+DOWN = "\u2193"
 
 def events
   @events ||= []
@@ -66,11 +69,32 @@ users.each do |user|
   user[:active] = true if user[:last_activity].to_datetime >= CUTOFF
 end
 
+puts "Comparing to previous report..."
+`mv report.csv report_old.csv`
+old_report = []
+old_report = CSV.read("report_old.csv") if File.file?("report_old.csv")
+old_report_hash = {}
+if old_report.length > 1
+  # Remove the header of the CSV file.
+  old_report.delete_at 0
+
+  old_report.each do |item|
+    old_report_hash[item[1]] = item
+  end
+end
+
 puts "Generating CSV..."
 CSV.open("report.csv", "wb") do |csv|
-  csv << ["type", "username", "full name", "active", "last_activity", "num_events"]
+  csv << ["type", "username", "full name", "active", "last_activity", "num_events", "change from last report"]
   users.each do |user|
-    csv << [user[:type], user[:username], user[:full_name], user[:active], user[:last_activity], user[:num_events]]
+    difference = "0"
+    user[:num_events] = 0 if user[:num_events].nil?
+
+    difference = (user[:num_events].to_i - old_report_hash[user[:username]][5].to_i).to_s unless old_report_hash[user[:username]].nil?
+    difference += " #{UP.encode('utf-8')}" if difference.to_i > 0
+    difference += " #{DOWN.encode('utf-8')}" if difference.to_i < 0
+
+    csv << [user[:type], user[:username], user[:full_name], user[:active], user[:last_activity], user[:num_events], difference]
   end
 end
 
