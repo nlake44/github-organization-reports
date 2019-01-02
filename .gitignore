@@ -1,2 +1,3 @@
 .ruby-gemset
-report.csv
+*.csv
+key
